@@ -7,12 +7,23 @@ const parsedDebounce = Number(import.meta.env.VITE_TRANSLATION_DEBOUNCE_MS);
 const DEFAULT_TRANSLATION_DEBOUNCE_MS =
   Number.isFinite(parsedDebounce) && parsedDebounce > 0 ? parsedDebounce : 500;
 
+export interface Language {
+  code: string;
+  name: string;
+  nativeName: string;
+}
+
+export interface TranslationResult {
+  translatedText: string;
+  detectedLanguage?: string;
+}
+
 export const useTranslation = () => {
-  const [languages, setLanguages] = useState([]);
+  const [languages, setLanguages] = useState<Language[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const debounceTimerRef = useRef(null);
-  const activeControllerRef = useRef(null);
+  const [error, setError] = useState<string | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeControllerRef = useRef<AbortController | null>(null);
 
   const cancelPendingTranslation = () => {
     if (debounceTimerRef.current) {
@@ -56,12 +67,16 @@ export const useTranslation = () => {
 
   /**
    * Traducir texto
-   * @param {string} text - Texto a traducir
-   * @param {string} fromLanguage - Código del idioma de origen
-   * @param {string} toLanguage - Código del idioma destino
-   * @returns {Promise} Resultado de la traducción
+   * @param text - Texto a traducir
+   * @param fromLanguage - Código del idioma de origen
+   * @param toLanguage - Código del idioma destino
+   * @returns Resultado de la traducción
    */
-  const translate = async (text, fromLanguage = 'auto-detect', toLanguage = 'en') => {
+  const translate = async (
+    text: string,
+    fromLanguage = 'auto-detect',
+    toLanguage = 'en',
+  ): Promise<TranslationResult | null> => {
     const controller = new AbortController();
     activeControllerRef.current = controller;
 
@@ -88,12 +103,13 @@ export const useTranslation = () => {
       }
 
       return data.data;
-    } catch (err) {
-      if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
         return null;
       }
-      console.error('Error en traducción:', err.message);
-      setError(err.message);
+      const message = err instanceof Error ? err.message : 'Error desconocido';
+      console.error('Error en traducción:', message);
+      setError(message);
       throw err;
     } finally {
       if (activeControllerRef.current === controller) {
@@ -106,11 +122,11 @@ export const useTranslation = () => {
    * Traducir con debounce para optimizar llamadas
    */
   const translateWithDebounce = async (
-    text,
+    text: string,
     fromLanguage = 'auto-detect',
     toLanguage = 'en',
     delay = DEFAULT_TRANSLATION_DEBOUNCE_MS,
-  ) => {
+  ): Promise<TranslationResult | null> => {
     return new Promise((resolve, reject) => {
       // Cancelar timeout anterior si existe
       if (debounceTimerRef.current) {
@@ -137,12 +153,12 @@ export const useTranslation = () => {
 
   /**
    * Intercambiar idiomas y traducir
-   * @param {string} text - Texto actual
-   * @param {string} currentFrom - Idioma actual de origen
-   * @param {string} currentTo - Idioma actual destino
-   * @returns {Promise} Resultado del intercambio
+   * @param text - Texto actual
+   * @param currentFrom - Idioma actual de origen
+   * @param currentTo - Idioma actual destino
+   * @returns Resultado del intercambio
    */
-  const swapLanguages = async (text, currentFrom, currentTo) => {
+  const swapLanguages = async (text: string, currentFrom: string, currentTo: string) => {
     try {
       setError(null);
 
@@ -165,9 +181,10 @@ export const useTranslation = () => {
       }
 
       return data.data;
-    } catch (err) {
-      console.error('Error al intercambiar idiomas:', err.message);
-      setError(err.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error desconocido';
+      console.error('Error al intercambiar idiomas:', message);
+      setError(message);
       throw err;
     }
   };

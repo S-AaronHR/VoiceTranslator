@@ -5,14 +5,12 @@ import { ErrorNotification } from "./error-notification";
 import { SpeechControls } from "./speech-controls";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { Separator } from "./ui/separator";
-import { FeatureCard } from "./feature-card";
 import { useTranslation } from "../../hooks/useTranslation";
 import { RoundTransferVerticalBold } from "solar-icon-set";
 
 export function Translator() {
   const { languages, loading, error, translateWithDebounce, cancelPendingTranslation } = useTranslation();
-  
+
   const [sourceLanguage, setSourceLanguage] = useState("auto-detect");
   const [isAutoDetectMode, setIsAutoDetectMode] = useState(true);
   const [targetLanguage, setTargetLanguage] = useState("en");
@@ -21,6 +19,8 @@ export function Translator() {
   const [isSourceRecording, setIsSourceRecording] = useState(false);
   const [isSourcePlaying, setIsSourcePlaying] = useState(false);
   const [isTargetPlaying, setIsTargetPlaying] = useState(false);
+  const [isSourceLoadingAudio, setIsSourceLoadingAudio] = useState(false);
+  const [isTargetLoadingAudio, setIsTargetLoadingAudio] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const translationRequestIdRef = useRef(0);
@@ -151,6 +151,8 @@ export function Translator() {
     }
     setIsSourcePlaying(false);
     setIsTargetPlaying(false);
+    setIsSourceLoadingAudio(false);
+    setIsTargetLoadingAudio(false);
   };
 
   const speakText = (
@@ -158,6 +160,7 @@ export function Translator() {
     languageCode: string,
     setPlayingState: (value: boolean) => void,
     stopPreviousState?: () => void,
+    setLoadingState?: (value: boolean) => void,
   ) => {
     if (!text.trim()) {
       return;
@@ -165,6 +168,7 @@ export function Translator() {
 
     stopAllSpeechPlayback();
     stopPreviousState?.();
+    setLoadingState?.(true);
 
     if (!isAzureSpeechLanguage(languageCode)) {
       if (!window.speechSynthesis) {
@@ -175,9 +179,9 @@ export function Translator() {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = getBrowserSpeechLanguage(languageCode);
 
-      utterance.onstart = () => setPlayingState(true);
-      utterance.onend = () => setPlayingState(false);
-      utterance.onerror = () => setPlayingState(false);
+      utterance.onstart = () => { setLoadingState?.(false); setPlayingState(true); };
+      utterance.onend = () => { setPlayingState(false); setLoadingState?.(false); };
+      utterance.onerror = () => { setPlayingState(false); setLoadingState?.(false); };
 
       const voices = window.speechSynthesis.getVoices();
       const selectedVoice =
@@ -201,12 +205,14 @@ export function Translator() {
 
         const synthesizer = new SpeechSDK.SpeechSynthesizer(speechConfig);
         activeSynthesizerRef.current = synthesizer;
+        setLoadingState?.(false);
         setPlayingState(true);
 
         synthesizer.speakTextAsync(
           text,
           () => {
             setPlayingState(false);
+            setLoadingState?.(false);
             synthesizer.close();
             if (activeSynthesizerRef.current === synthesizer) {
               activeSynthesizerRef.current = null;
@@ -215,6 +221,7 @@ export function Translator() {
           (synthesisError) => {
             console.error("Error en síntesis Azure Speech:", synthesisError);
             setPlayingState(false);
+            setLoadingState?.(false);
             synthesizer.close();
             if (activeSynthesizerRef.current === synthesizer) {
               activeSynthesizerRef.current = null;
@@ -224,6 +231,7 @@ export function Translator() {
       } catch (speechError) {
         console.error("Error configurando Azure Speech TTS:", speechError);
         setPlayingState(false);
+        setLoadingState?.(false);
       }
     })();
   };
@@ -404,12 +412,12 @@ export function Translator() {
   };
 
   const handlePlayAudio = () => {
-    speakText(translatedText, targetLanguage, setIsTargetPlaying, () => setIsSourcePlaying(false));
+    speakText(translatedText, targetLanguage, setIsTargetPlaying, () => setIsSourcePlaying(false), setIsTargetLoadingAudio);
   };
 
   const handlePlaySourceAudio = () => {
     const sourceVoiceLanguage = isAutoDetectMode && detectedLanguage ? detectedLanguage : sourceLanguage;
-    speakText(sourceText, sourceVoiceLanguage, setIsSourcePlaying, () => setIsTargetPlaying(false));
+    speakText(sourceText, sourceVoiceLanguage, setIsSourcePlaying, () => setIsTargetPlaying(false), setIsSourceLoadingAudio);
   };
 
   const handleTranslate = async (
@@ -443,10 +451,10 @@ export function Translator() {
       if (requestId !== translationRequestIdRef.current) {
         return;
       }
-      
+
       if (result) {
         setTranslatedText(result.translatedText);
-        
+
         // Si fue detección automática, guardar el idioma detectado
         if (isAutoMode && result.detectedLanguage) {
           setDetectedLanguage(result.detectedLanguage);
@@ -553,6 +561,7 @@ export function Translator() {
                 showPlay={Boolean(sourceText.trim())}
                 isRecording={isSourceRecording}
                 isPlaying={isSourcePlaying}
+                isLoadingPlay={isSourceLoadingAudio}
                 onRecord={handleRecord}
                 onPlay={handlePlaySourceAudio}
                 disabled={isTranslating || loading}
@@ -613,6 +622,7 @@ export function Translator() {
               {translatedText.trim() ? (
                 <SpeechControls
                   isPlaying={isTargetPlaying}
+                  isLoadingPlay={isTargetLoadingAudio}
                   onPlay={handlePlayAudio}
                   disabled={isTranslating || loading}
                   playLabel="Reproducir traducción"
