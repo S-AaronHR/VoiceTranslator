@@ -51,7 +51,7 @@ Desarrollar una aplicación web moderna de traducción que integre **texto y voz
 ## 📁 Arquitectura del proyecto
 
 ```
-front/
+./
 ├── index.html                        # HTML base de la SPA
 ├── vite.config.ts                    # Configuración de Vite + plugins
 ├── netlify.toml                      # Configuración de deploy en Netlify
@@ -88,14 +88,13 @@ front/
 
 - **Node.js** >= 18
 - **npm** >= 9
-- El [backend](../Back/README.md) corriendo localmente o desplegado
+- El backend de Voice Translator corriendo localmente o desplegado
 
 ### Pasos
 
 ```bash
 # 1. Clonar el repositorio
 git clone <url-del-repositorio>
-cd front
 
 # 2. Instalar dependencias
 npm install
@@ -106,7 +105,7 @@ npm install
 
 ### Variables de entorno
 
-Crear un archivo `.env` en la raíz de `front/`:
+Crear un archivo `.env` en la raíz del proyecto:
 
 ```env
 # === API Backend ===
