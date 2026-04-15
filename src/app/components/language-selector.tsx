@@ -6,43 +6,63 @@ import {
   SelectValue,
 } from "./ui/select";
 
-const languages = [
-  { code: "es", name: "Español", flag: "🇪🇸" },
-  { code: "en", name: "English", flag: "🇬🇧" },
-  { code: "fr", name: "Français", flag: "🇫🇷" },
-  { code: "de", name: "Deutsch", flag: "🇩🇪" },
-  { code: "it", name: "Italiano", flag: "🇮🇹" },
-  { code: "pt", name: "Português", flag: "🇵🇹" },
-  { code: "zh", name: "中文", flag: "🇨🇳" },
-  { code: "ja", name: "日本語", flag: "🇯🇵" },
-  { code: "ko", name: "한국어", flag: "🇰🇷" },
-  { code: "ar", name: "العربية", flag: "🇸🇦" },
-];
+interface Language {
+  code: string;
+  name: string;
+  nativeName?: string;
+}
 
 interface LanguageSelectorProps {
   value: string;
   onChange: (value: string) => void;
+  languages?: Language[];
+  disabled?: boolean;
+  selectedLabel?: string;
 }
 
-export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
-  const selectedLanguage = languages.find((lang) => lang.code === value);
+export function LanguageSelector({
+  value,
+  onChange,
+  languages: serverLanguages = [],
+  disabled = false,
+  selectedLabel,
+}: LanguageSelectorProps) {
+  const selectedLanguage = serverLanguages.find((lang) => lang.code === value) || {
+    code: value,
+    name: value,
+    nativeName: value,
+  };
+
+  const getLanguageAbbreviation = (code: string) => {
+    if (code === "auto-detect") {
+      return "AUTO";
+    }
+    const [base] = code.split("-");
+    return base.toUpperCase();
+  };
+
+  const displayName = selectedLabel || selectedLanguage.nativeName || selectedLanguage.name || value;
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
       <SelectTrigger className="w-full border-0 bg-transparent font-medium focus:ring-0">
         <SelectValue>
           <span className="flex items-center gap-2">
-            <span className="text-lg">{selectedLanguage?.flag}</span>
-            <span>{selectedLanguage?.name}</span>
+            <span className="inline-flex h-6 min-w-10 items-center justify-center rounded-md bg-primary/15 px-2 text-[11px] font-semibold tracking-wide text-primary">
+              {getLanguageAbbreviation(value)}
+            </span>
+            <span>{displayName}</span>
           </span>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {languages.map((lang) => (
+        {serverLanguages.map((lang) => (
           <SelectItem key={lang.code} value={lang.code}>
             <span className="flex items-center gap-2">
-              <span className="text-lg">{lang.flag}</span>
-              <span>{lang.name}</span>
+              <span className="inline-flex h-6 min-w-10 items-center justify-center rounded-md bg-primary/15 px-2 text-[11px] font-semibold tracking-wide text-primary">
+                {getLanguageAbbreviation(lang.code)}
+              </span>
+              <span>{lang.nativeName || lang.name}</span>
             </span>
           </SelectItem>
         ))}
